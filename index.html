@@ -98,7 +98,7 @@
 
         <!-- Bước 1: Nhập văn bản -->
         <div id="text-input-area" class="bg-white p-6 rounded-xl shadow-md mb-8">
-            <h2 class="text-xl font-bold text-slate-700 mb-2" data-lang-key="step1Title">Bước 1: Nhập đoạn văn bản</h2>
+            <h2 class="text-xl font-bold text-slate-700 mb-2" data-lang-key="step1Title">Bước 1: Nhập văn bản</h2>
             <p class="text-slate-500 mb-4" data-lang-key="step1Desc">Dán một đoạn văn bản tiếng Anh vào đây.</p>
             <textarea id="text-input" class="w-full h-40 p-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition" data-lang-key="textInputPlaceholder" placeholder="Paste your English text here..."></textarea>
             <div id="input-error" class="text-red-500 text-sm mt-2"></div>
@@ -185,7 +185,7 @@
             vi: {
                 mainTitle: "Khu Vườn Từ Vựng",
                 subTitle: "Biến mọi bài đọc thành bài học của riêng bạn.",
-                step1Title: "Bước 1: Nhập đoạn văn bản",
+                step1Title: "Bước 1: Nhập văn bản",
                 step1Desc: "Dán một đoạn văn bản tiếng Anh vào đây.",
                 textInputPlaceholder: "Dán văn bản tiếng Anh của bạn vào đây...",
                 processTextBtn: "Xử lý văn bản",
@@ -210,7 +210,7 @@
             en: {
                 mainTitle: "Vocab Garden",
                 subTitle: "Turn any reading into your personal lesson.",
-                step1Title: "Step 1: Enter Your Text",
+                step1Title: "Step 1: Enter Text",
                 step1Desc: "Paste a piece of English text below.",
                 textInputPlaceholder: "Paste your English text here...",
                 processTextBtn: "Process Text",
@@ -270,10 +270,9 @@
                 const key = el.getAttribute('data-lang-key');
                 const translation = translations[lang][key];
                 if (translation) {
-                    if (el.tagName === 'TEXTAREA' && key.includes('Placeholder')) {
-                        el.placeholder = translation;
+                    if (el.placeholder) {
+                         el.placeholder = translation;
                     } else {
-                        // Use innerHTML to allow for icons inside buttons
                         const icon = el.querySelector('i');
                         if (icon) {
                             el.innerHTML = `${icon.outerHTML} ${translation}`;
@@ -283,9 +282,8 @@
                     }
                 }
             });
-            updateProgress(); // Re-render progress text with new language
+            updateProgress();
             
-            // Update active button style
             if(lang === 'vi') {
                 langViBtn.classList.add('active');
                 langEnBtn.classList.remove('active');
@@ -323,7 +321,7 @@
             localStorage.removeItem('vocabGardenUserText');
         }
 
-        // --- CÁC HÀM API (GEMINI) ---
+        // --- CÁC HÀM API ---
         async function generateSingleFlashcard(word, context, targetElement) {
             targetElement.classList.add('loading');
             targetElement.style.pointerEvents = 'none';
@@ -430,7 +428,7 @@
             }
             const utterance = new SpeechSynthesisUtterance(text);
             utterance.lang = 'en-US';
-            utterance.rate = 0.9;
+            utterance.rate = 0.8; 
             synth.speak(utterance);
         }
 
@@ -440,27 +438,28 @@
                 return;
             }
 
-            let textToSpeak = "";
-            const spanStartIndices = [];
-            const allSpans = [];
+            const fullText = interactiveTextDisplay.textContent;
+            const allSpans = Array.from(interactiveTextDisplay.querySelectorAll('.interactive-word'));
             let lastHighlightedSpan = null;
 
-            interactiveTextDisplay.querySelectorAll('p').forEach((p, pIndex) => {
-                p.childNodes.forEach(node => {
-                    if (node.nodeType === Node.ELEMENT_NODE && node.tagName === 'SPAN') {
-                        spanStartIndices.push(textToSpeak.length);
-                        allSpans.push(node);
-                    }
-                    textToSpeak += node.textContent;
-                });
-                if (pIndex < interactiveTextDisplay.querySelectorAll('p').length - 1) {
-                    textToSpeak += " "; 
+            const spanBoundaries = [];
+            let currentIndex = 0;
+            allSpans.forEach(span => {
+                const word = span.textContent;
+                const startIndex = fullText.indexOf(word, currentIndex);
+                if (startIndex !== -1) {
+                    spanBoundaries.push({
+                        span: span,
+                        start: startIndex,
+                        end: startIndex + word.length
+                    });
+                    currentIndex = startIndex + word.length;
                 }
             });
 
-            const utterance = new SpeechSynthesisUtterance(textToSpeak);
+            const utterance = new SpeechSynthesisUtterance(fullText);
             utterance.lang = 'en-US';
-            utterance.rate = 0.9;
+            utterance.rate = 0.8; 
 
             utterance.onboundary = (event) => {
                 if (event.name !== 'word') return;
@@ -469,17 +468,11 @@
                     lastHighlightedSpan.classList.remove('highlight-word');
                 }
 
-                let currentSpan = null;
-                for (let i = spanStartIndices.length - 1; i >= 0; i--) {
-                    if (event.charIndex >= spanStartIndices[i]) {
-                        currentSpan = allSpans[i];
-                        break;
-                    }
-                }
-
-                if (currentSpan) {
-                    currentSpan.classList.add('highlight-word');
-                    lastHighlightedSpan = currentSpan;
+                const currentBoundary = spanBoundaries.find(b => event.charIndex >= b.start && event.charIndex < b.end);
+                
+                if (currentBoundary) {
+                    currentBoundary.span.classList.add('highlight-word');
+                    lastHighlightedSpan = currentBoundary.span;
                 }
             };
 
@@ -581,7 +574,7 @@
             if (!cardData) return;
             const utterance = new SpeechSynthesisUtterance(`${cardData.word}. ${cardData.sentence}`);
             utterance.lang = 'en-US';
-            utterance.rate = 0.9;
+            utterance.rate = 0.8; 
             synth.speak(utterance);
         }
 
